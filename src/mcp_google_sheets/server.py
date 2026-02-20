@@ -5,6 +5,7 @@ A Model Context Protocol (MCP) server built with FastMCP for interacting with Go
 """
 
 import base64
+import csv
 import os
 import sys
 from typing import List, Dict, Any, Optional, Union
@@ -1387,6 +1388,86 @@ def batch_update(spreadsheet_id: str,
     ).execute()
     
     return result
+
+
+@tool(
+    annotations=ToolAnnotations(
+        title="Export to CSV",
+        readOnlyHint=True,
+    ),
+)
+def export_to_csv(spreadsheet_id: str,
+                  sheet: str,
+                  output_path: str,
+                  range: Optional[str] = None,
+                  ctx: Context = None) -> Dict[str, Any]:
+    """
+    Export Google Sheet data to a CSV file on disk.
+
+    Downloads sheet data via Google Sheets API and writes directly to a local CSV file.
+    Returns only metadata (path, row/column counts, file size) — zero data in agent context.
+    This is ideal for large sheets where returning all data would overflow the context window.
+
+    Args:
+        spreadsheet_id: The ID of the spreadsheet (found in the URL)
+        sheet: The name of the sheet/tab to export (e.g., 'Activity_Mailing_1')
+        output_path: Local file path where the CSV will be saved (e.g., '/path/to/output.csv')
+        range: Optional column range in A1 notation (e.g., 'A:Q'). If not provided, exports all data.
+
+    Returns:
+        dict with: path, rows, columns, bytes
+    """
+    sheets_service = ctx.request_context.lifespan_context.sheets_service
+
+    # Construct the range
+    if range:
+        full_range = f"{sheet}!{range}"
+    else:
+        full_range = sheet
+
+    try:
+        result = sheets_service.spreadsheets().values().get(
+            spreadsheetId=spreadsheet_id,
+            range=full_range
+        ).execute()
+    except Exception as e:
+        error_msg = str(e)
+        if 'not found' in error_msg.lower() or '404' in error_msg:
+            return {"error": f"Sheet '{sheet}' not found in spreadsheet '{spreadsheet_id}'."}
+        if '403' in error_msg or 'permission' in error_msg.lower():
+            return {"error": f"Permission denied for spreadsheet '{spreadsheet_id}'. Check sharing settings."}
+        return {"error": f"Google Sheets API error: {error_msg}"}
+
+    values = result.get('values', [])
+
+    if not values:
+        # Write empty file
+        parent_dir = os.path.dirname(output_path)
+        if parent_dir:
+            os.makedirs(parent_dir, exist_ok=True)
+        with open(output_path, 'w', newline='', encoding='utf-8') as f:
+            pass  # empty file
+        return {"path": output_path, "rows": 0, "columns": 0, "bytes": 0}
+
+    # Ensure parent directory exists
+    parent_dir = os.path.dirname(output_path)
+    if parent_dir:
+        os.makedirs(parent_dir, exist_ok=True)
+
+    # Write CSV — UTF-8 without BOM
+    with open(output_path, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerows(values)
+
+    file_size = os.path.getsize(output_path)
+    max_cols = max(len(row) for row in values)
+
+    return {
+        "path": output_path,
+        "rows": len(values),
+        "columns": max_cols,
+        "bytes": file_size
+    }
 
 
 def main():
