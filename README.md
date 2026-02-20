@@ -80,7 +80,7 @@ _Refer to the [ID Reference Guide](#-id-reference-guide) for more information ab
     *   ➡️ See [**Usage with Claude Desktop**](#-usage-with-claude-desktop) for examples.
 
 6.  **⚡ Optional: Enable Tool Filtering (Reduce Context Usage)**
-    *   By default, all 19 tools are enabled (~13K tokens). To reduce context usage, enable only the tools you need.
+    *   By default, all 20 tools are enabled (~13K tokens). To reduce context usage, enable only the tools you need.
     *   ➡️ See [**Tool Filtering**](#-tool-filtering-reduce-context-usage) for details.
 
 You're ready! Start issuing commands via your MCP client.
@@ -100,7 +100,7 @@ You're ready! Start issuing commands via your MCP client.
 
 ## 🎯 Tool Filtering (Reduce Context Usage)
 
-**Problem:** By default, this MCP server exposes all 19 tools, consuming ~13,000 tokens before any conversation begins. If you only need a few tools, this wastes valuable context window space.
+**Problem:** By default, this MCP server exposes all 20 tools, consuming ~13,000 tokens before any conversation begins. If you only need a few tools, this wastes valuable context window space.
 
 **Solution:** Use tool filtering to enable only the tools you actually use.
 
@@ -161,6 +161,7 @@ When filtering, use these exact tool names (comma-separated, no spaces):
 - `copy_sheet`
 - `create_sheet`
 - `create_spreadsheet`
+- `export_to_csv`
 - `find_in_spreadsheet`
 - `get_multiple_sheet_data`
 - `get_multiple_spreadsheet_summary`
@@ -257,6 +258,12 @@ _Refer to the [ID Reference Guide](#-id-reference-guide) for more information ab
     *   `sheet` (string): Current sheet/tab name (e.g., "Sheet1").
     *   `new_name` (string): New sheet/tab name (e.g., "Transactions").
     *   _Returns:_ Result of the operation ([`batchUpdate` response](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/batchUpdate#response-body)).
+*   **`export_to_csv`**: Export Google Sheet data to a CSV file on disk. Returns only metadata (path, rows, columns, bytes) — zero data in agent context. Ideal for large sheets.
+    *   `spreadsheet_id` (string): The spreadsheet ID (from its URL).
+    *   `sheet` (string): Name of the sheet/tab to export (e.g., 'Activity_Mailing_1').
+    *   `output_path` (string): Local file path where the CSV will be saved.
+    *   `range` (optional string): Column range in A1 notation (e.g., 'A:Q'). If omitted, exports all data.
+    *   _Returns:_ Object with `path`, `rows`, `columns`, `bytes`.
 
 **MCP Resources:**
 
